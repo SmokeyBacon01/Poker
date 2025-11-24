@@ -45,7 +45,7 @@ enum hands {
     STRAIGHT_FLUSH,
     ROYAL_FLUSH,
     TOTAL_HANDS
-};
+}
 
 struct hand_type {
     enum rank rank;
