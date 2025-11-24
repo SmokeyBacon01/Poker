@@ -1,2 +1,2 @@
-# Hand-Finder
-Finds the strongest hand in a certain draw of cards. 
+#hand find
+this project finds the strongest poker hand in a randomly drawn hand
