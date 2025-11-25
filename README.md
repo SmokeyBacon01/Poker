@@ -1,2 +1,1 @@
-#hand find
-this project finds the strongest poker hand in a randomly drawn hand
+test project to get use to github

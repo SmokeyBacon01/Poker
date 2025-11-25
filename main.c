@@ -45,7 +45,7 @@ enum hands {
     STRAIGHT_FLUSH,
     ROYAL_FLUSH,
     TOTAL_HANDS
-}
+};
 
 struct hand_type {
     enum rank rank;
@@ -162,7 +162,7 @@ int main(void) {
 
     draw_hand(deck, hand_size);
 
-    debug_scan_hand(deck);
+    // debug_scan_hand(deck);
     
     struct hand_type hand = find_strongest_hand(deck);
 
@@ -328,7 +328,7 @@ struct hand_type is_straight_flush(bool deck[MAX_RANKS][MAX_SUITS]) {
             }
         }
 
-        if (count == PLAY_SIZE - 1 && deck[0][suit]) {
+        if (count >= PLAY_SIZE - 1 && deck[0][suit]) {
             hand.type = ROYAL_FLUSH;
             hand.suit = suit;
             hand.rank = ACE;
@@ -546,7 +546,7 @@ void draw_hand(bool deck[MAX_RANKS][MAX_SUITS], int hand_size) {
 }
 
 
-// Returns random number [0, max].
+// Returns random number [0, max).
 int random_unsigned(int max) {
     return rand() % max;
 }
