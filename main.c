@@ -2,11 +2,20 @@
 #include <stdbool.h>
 #include <time.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define DECK_SIZE 52
 #define HAND_SIZE 8
 #define PLAY_SIZE 5
 #define NONE -1
+
+#define PLAY_INITIAL -1
+#define PLAY_DEBUG 0
+#define PLAY_BLACKJACK 1
+#define PLAY_POKER 2
+
+#define BLACKJACK 21
+#define DEALER_THRESHOLD 16
 
 enum suit {
     HEARTS,
@@ -54,8 +63,24 @@ struct hand_type {
     enum hands type;
 };
 
+struct card {
+    int rank;
+    int suit;
+};
+
+struct player_hand {
+    struct card card;
+    struct player_hand *next;
+};
+
+void debug_scan_hand(bool deck[MAX_RANKS][MAX_SUITS]);
+void debug_print_deck(bool deck[MAX_RANKS][MAX_SUITS]);
+
 int random_unsigned(int max);
 int random_signed(int max);
+
+void testing_hands(void);
+void lets_go_gambling(void);
 
 int command(void);
 
@@ -76,101 +101,279 @@ struct hand_type is_high_card(bool deck[MAX_RANKS][MAX_SUITS]);
 
 enum rank exclusion_pair_search(bool deck[MAX_RANKS][MAX_SUITS], enum rank excluded_rank);
 
-void debug_print_deck(bool deck[MAX_RANKS][MAX_SUITS]) {
-    printf(" |A|2|3|4|5|6|7|8|9|X|J|Q|K|\n");
-    printf("H|");
-    for (int i = 0; i < MAX_RANKS; i++) {
-        if (deck[i][HEARTS] == true) {
-            printf("X|");
-        } else {
-            printf(" |");
-        }
-    }
-    printf("\n");
+void play_blackjack(bool deck[MAX_RANKS][MAX_SUITS], int cash);
+void print_blackjack_table(struct player_hand *dealer, struct player_hand *hand, int cash);
+void print_dealer_showdown(struct player_hand *dealer, struct player_hand *hand);
+char int_to_face(int n);
+struct player_hand *create_hand_node(struct card card);
+struct card draw_card(bool deck[MAX_RANKS][MAX_SUITS]);
+int get_sum(struct player_hand *hand);
 
-    printf("D|");
-    for (int i = 0; i < MAX_RANKS; i++) {
-        if (deck[i][DIAMONDS] == true) {
-            printf("X|");
-        } else {
-            printf(" |");
-        }
-    }
-    printf("\n");
-
-    printf("S|");
-    for (int i = 0; i < MAX_RANKS; i++) {
-        if (deck[i][SPADES] == true) {
-            printf("X|");
-        } else {
-            printf(" |");
-        }
-    }
-    printf("\n");
-
-    printf("C|");
-    for (int i = 0; i < MAX_RANKS; i++) {
-        if (deck[i][CLUBS] == true) {
-            printf("X|");
-        } else {
-            printf(" |");
-        }
-    }
-    printf("\n");
-}   
-
-void debug_scan_hand(bool deck[MAX_RANKS][MAX_SUITS]) {
-    char string[53];
-    fgets(string, 53, stdin);
-    int i = 0;
-    for (int suit = 0; suit < MAX_SUITS; suit++) {
-        for (int rank = 0; rank < MAX_RANKS; rank++) {
-            if (string[i] == '\0') {
-                return;
-            }
-            if (string[i] == 'X') {
-                deck[rank][suit] = true;
-            } else {
-                deck[rank][suit] = false;
-            }
-            i++;
-        }
-    }
-
-    // for (int rank = 0; rank < MAX_RANKS; rank++) {
-    //     for (int suit = 0; suit < MAX_SUITS; suit++) {
-    //         if (string[i] == '\0') {
-    //             return;
-    //         }
-    //         if (string[i] == 'X') {
-    //             deck[rank][suit] = true;
-    //         } else {
-    //             deck[rank][suit] = false;
-    //         }
-    //         i++;
-    //     }
-    // }
-}
 
 int main(void) {
     srand(time(NULL));
 
-    int hand_size = command();
+    int input = PLAY_INITIAL;
+    printf("Input '0' to enter debug mode, input '1' for gambling\n");
 
-    bool deck[MAX_RANKS][MAX_SUITS];
-    initialise_deck(deck);
+    scanf(" %d", &input);
 
-    draw_hand(deck, hand_size);
-
-    // debug_scan_hand(deck);
-    
-    struct hand_type hand = find_strongest_hand(deck);
-
-    print_strongest_hand(hand);
-
-    debug_print_deck(deck);
-
+    if (input == PLAY_DEBUG) {      
+        testing_hands();
+    } else {
+        lets_go_gambling();
+    }
     return 0;
+}
+
+void lets_go_gambling(void) {
+    printf("How much money you bringing?\n");
+    int cash;
+    scanf(" %d", &cash);
+    bool master_deck[MAX_RANKS][MAX_SUITS];
+    initialise_deck(master_deck);
+    
+    printf("What we playing?\n");
+    printf("1 - Blackjack\n");
+    printf("2 - Poker\n");
+
+    int game_mode = 0;
+    scanf(" %d", &game_mode);
+
+    if (game_mode == PLAY_BLACKJACK) {
+        printf("\n");
+        play_blackjack(master_deck, cash);
+    }
+}
+
+void testing_hands(void) {
+    bool deck[MAX_RANKS][MAX_SUITS];
+        initialise_deck(deck);
+
+    while (1) {
+        printf("force quit to leave debug mode\n");
+        
+        int hand_size = command();
+
+        draw_hand(deck, hand_size);
+        
+        struct hand_type hand = find_strongest_hand(deck);
+
+        print_strongest_hand(hand);
+
+        debug_print_deck(deck);
+        initialise_deck(deck);
+    }
+}
+
+void play_blackjack(bool deck[MAX_RANKS][MAX_SUITS], int cash) {
+    char more = '\0';
+    while (more != 'n') {
+        printf("How much are we betting?\n");
+        int bet = 0;
+        while (bet > cash || bet <= 0) {
+            scanf(" %d", &bet);
+            if (bet <= 0) {
+                printf("We don't bet debts here.\n");
+            } else if (bet > cash) {
+                printf("You don't got that much nerd.\n");
+            }
+        }
+
+        cash -= bet;
+
+        struct player_hand *dealer = NULL;
+        dealer = create_hand_node(draw_card(deck));
+        dealer->next = create_hand_node(draw_card(deck));
+        
+        struct player_hand *hand = NULL;
+        hand = create_hand_node(draw_card(deck));
+        hand->next = create_hand_node(draw_card(deck));
+        char input = '\0';
+
+        while (get_sum(hand) < BLACKJACK && input != 'S') {
+            print_blackjack_table(dealer, hand, cash);
+            printf("Press 'H' to hit, or 'S' to stand.\n");
+
+            input = '\0';
+            while (input != 'H' && input != 'S') {
+                scanf(" %c", &input);
+            }
+
+            if (input == 'H') {
+                struct player_hand *curr = hand;
+                while (curr->next != NULL) {
+                    curr = curr->next;
+                }
+                curr->next = create_hand_node(draw_card(deck));
+            } else {
+                print_dealer_showdown(dealer, hand);
+                while (get_sum(dealer) <= DEALER_THRESHOLD) {
+                    struct player_hand *curr_dealer = dealer;
+                    while (curr_dealer->next != NULL) {
+                        curr_dealer = curr_dealer->next;
+                    }
+                    curr_dealer->next = create_hand_node(draw_card(deck));
+                    print_dealer_showdown(dealer, hand);
+                    sleep(2);
+                }
+            }
+        }
+        
+        print_dealer_showdown(dealer, hand);
+        if (get_sum(hand) > BLACKJACK) {
+            printf("BUST!\n");
+        } else if (get_sum(hand) == get_sum(dealer) && get_sum(dealer) == BLACKJACK) {
+            printf("Push!\n");
+        } else if (get_sum(hand) == BLACKJACK) {
+            printf("BLACKJACK!\n");
+            cash += 2 * bet;
+        } else if (get_sum(dealer) > BLACKJACK) {
+            printf("Nice hand!\n");
+            cash += 2 * bet;   
+        } else if (get_sum(hand) < get_sum(dealer)) {
+            printf("Better luck next time!\n");
+        } else if (get_sum(hand) > get_sum(dealer)) {
+            printf("Nice hand!\n");
+            cash += 2 * bet;
+        } else {
+            printf("Push!\n");
+            cash += bet;
+        }
+
+        initialise_deck(deck);
+        printf("Balance: %d\n", cash);
+        printf("Play more? (y/n)\n");
+        scanf(" %c", &more);
+        if (cash <= 0 && more != 'n') {
+            printf("You have no money bruh\n");
+            printf("Press 'q' to quit.\n");
+            char quit;
+            scanf(" %c", &quit);
+            break;
+        }
+    }
+}
+
+int get_sum(struct player_hand *hand) {
+    struct player_hand *curr = hand;
+    int sum = 0;
+    int ace_count = 0;
+    while (curr != NULL) {
+        if (curr->card.rank > TEN) {
+            sum += 10;
+        } else if (curr->card.rank != ACE) {
+            sum += curr->card.rank + 1;
+        } else {
+            ace_count++;
+        }
+        curr = curr->next;
+    }
+    while (ace_count > 0) {
+        if (sum + 11 > BLACKJACK) {
+            sum += 1;
+        } else {
+            sum += 11;
+        }
+        ace_count--;
+    }
+
+    return sum;
+}
+
+void print_dealer_showdown(struct player_hand *dealer, struct player_hand *hand) {
+    struct player_hand *curr_dealer = dealer;
+    printf("DEALER:");
+
+    while (curr_dealer != NULL) {
+        if (curr_dealer->card.rank > TEN || curr_dealer->card.rank == ACE) {
+            printf(" [%c]", int_to_face(curr_dealer->card.rank));
+        } else {
+            printf(" [%d]", (int)curr_dealer->card.rank + 1); 
+        }
+        curr_dealer = curr_dealer->next;
+    }
+    printf("\n");
+
+    struct player_hand *curr = hand;
+    printf("YOU:");
+
+    while (curr != NULL) {
+        if (curr->card.rank > TEN || curr->card.rank == ACE) {
+            printf(" [%c]", int_to_face(curr->card.rank));
+        } else {
+            printf(" [%d]", (int)curr->card.rank + 1); 
+        }
+        curr = curr->next;
+    }
+    printf("\n");
+}
+
+void print_blackjack_table(struct player_hand *dealer, struct player_hand *hand, int cash) {
+    printf("---BLACKJACK---\n");
+    struct player_hand *curr_dealer = dealer->next;
+    printf("DEALER:");
+    printf(" [X]");
+
+    while (curr_dealer != NULL) {
+        if (curr_dealer->card.rank > TEN || curr_dealer->card.rank == ACE) {
+            printf(" [%c]", int_to_face(curr_dealer->card.rank));
+        } else {
+            printf(" [%d]", (int)curr_dealer->card.rank + 1); 
+        }
+        curr_dealer = curr_dealer->next;
+    }
+    printf("\n");
+
+    struct player_hand *curr = hand;
+    printf("YOU:");
+
+    while (curr != NULL) {
+        if (curr->card.rank > TEN || curr->card.rank == ACE) {
+            printf(" [%c]", int_to_face(curr->card.rank));
+        } else {
+            printf(" [%d]", (int)curr->card.rank + 1); 
+        }
+        curr = curr->next;
+    }
+    printf("\n");
+    printf("YOUR BALANCE = %d\n", cash);
+}
+
+char int_to_face(int n) {
+    if (n == JACK) {
+        return 'J';
+    } else if (n == QUEEN) {
+        return 'Q';
+    } else if (n == KING) {
+        return 'K';
+    } else {
+        return 'A';
+    }
+}
+
+struct player_hand *create_hand_node(struct card card) {
+    struct player_hand *n = malloc(sizeof(struct player_hand));
+    n->card = card;
+    n->next = NULL;
+    return n;
+}
+
+struct card draw_card(bool deck[MAX_RANKS][MAX_SUITS]) {
+    bool card_drawn = false;
+    struct card card;
+    while (!card_drawn) {
+        int suit = random_unsigned(MAX_SUITS);
+        int rank = random_unsigned(MAX_RANKS);
+        if (!deck[rank][suit]) {
+            deck[rank][suit] = true;
+            card.suit = suit;
+            card.rank = rank;
+            card_drawn = true;
+        }
+    }
+
+    return card;
 }
 
 int command(void) {
@@ -183,48 +386,50 @@ int command(void) {
             printf("ERROR: Please enter a number between 0 and 52.\n");
         }
     }
+
+    return hand_size;
 }
 
 struct hand_type find_strongest_hand(bool deck[MAX_RANKS][MAX_SUITS]) {
     struct hand_type hand;
 
     hand = is_straight_flush(deck);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
     hand = is_n_of_a_kind(deck, 4);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
     hand = is_full_house(deck);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
     hand = is_flush(deck);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
     hand = is_straight(deck);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
     hand = is_n_of_a_kind(deck, 3);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
     hand = is_two_pair(deck);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
     hand = is_n_of_a_kind(deck, 2);
-    if (hand.type != NONE) {
+    if ((int)hand.type != NONE) {
         return hand;
     }
 
@@ -342,7 +547,7 @@ struct hand_type is_n_of_a_kind(bool deck[MAX_RANKS][MAX_SUITS], int n) {
     struct hand_type hand;
     hand.rank = NONE;
     hand.type = NONE;
-    int saved_count;
+    int saved_count = 0;
     int count;
     for (int rank = 0; rank < MAX_RANKS; rank++) {
         count = 0;
@@ -380,7 +585,7 @@ struct hand_type is_full_house(bool deck[MAX_RANKS][MAX_SUITS]) {
 
     struct hand_type trips = is_n_of_a_kind(deck, 3);
     hand.second_rank = exclusion_pair_search(deck, trips.rank);
-    if (hand.second_rank != NONE && trips.rank != NONE) {
+    if ((int)hand.second_rank != NONE && (int)trips.rank != NONE) {
         hand.type = FULL_HOUSE;
         hand.rank = trips.rank;
     }
@@ -394,7 +599,7 @@ enum rank exclusion_pair_search(bool deck[MAX_RANKS][MAX_SUITS], enum rank exclu
     
     int count = 0;
     for (int rank = 0; rank < MAX_RANKS; rank++) {
-        if (rank == excluded_rank) {
+        if (rank == (int)excluded_rank) {
             rank++;
         }
 
@@ -442,7 +647,7 @@ struct hand_type is_flush(bool deck[MAX_RANKS][MAX_SUITS]) {
                 hand.rank = rank;
             }
         }
-        if (hand.rank != NONE) {
+        if ((int)hand.rank != NONE) {
             hand.type = FLUSH;
             hand.suit = suit;
             return hand;
@@ -499,7 +704,7 @@ struct hand_type is_two_pair(bool deck[MAX_RANKS][MAX_SUITS]) {
 
     struct hand_type pair = is_n_of_a_kind(deck, 2);
     hand.second_rank = exclusion_pair_search(deck, pair.rank);
-    if (hand.second_rank != NONE && pair.rank != NONE) {
+    if ((int)hand.second_rank != NONE && (int)pair.rank != NONE) {
         hand.type = TWO_PAIR;
         hand.rank = pair.rank;
     }
@@ -545,6 +750,81 @@ void draw_hand(bool deck[MAX_RANKS][MAX_SUITS], int hand_size) {
     }
 }
 
+void debug_print_deck(bool deck[MAX_RANKS][MAX_SUITS]) {
+    printf(" |A|2|3|4|5|6|7|8|9|X|J|Q|K|\n");
+    printf("H|");
+    for (int i = 0; i < MAX_RANKS; i++) {
+        if (deck[i][HEARTS] == true) {
+            printf("X|");
+        } else {
+            printf(" |");
+        }
+    }
+    printf("\n");
+
+    printf("D|");
+    for (int i = 0; i < MAX_RANKS; i++) {
+        if (deck[i][DIAMONDS] == true) {
+            printf("X|");
+        } else {
+            printf(" |");
+        }
+    }
+    printf("\n");
+
+    printf("S|");
+    for (int i = 0; i < MAX_RANKS; i++) {
+        if (deck[i][SPADES] == true) {
+            printf("X|");
+        } else {
+            printf(" |");
+        }
+    }
+    printf("\n");
+
+    printf("C|");
+    for (int i = 0; i < MAX_RANKS; i++) {
+        if (deck[i][CLUBS] == true) {
+            printf("X|");
+        } else {
+            printf(" |");
+        }
+    }
+    printf("\n");
+}   
+
+void debug_scan_hand(bool deck[MAX_RANKS][MAX_SUITS]) {
+    char string[53];
+    fgets(string, 53, stdin);
+    int i = 0;
+    for (int suit = 0; suit < MAX_SUITS; suit++) {
+        for (int rank = 0; rank < MAX_RANKS; rank++) {
+            if (string[i] == '\0') {
+                return;
+            }
+            if (string[i] == 'X') {
+                deck[rank][suit] = true;
+            } else {
+                deck[rank][suit] = false;
+            }
+            i++;
+        }
+    }
+
+    // for (int rank = 0; rank < MAX_RANKS; rank++) {
+    //     for (int suit = 0; suit < MAX_SUITS; suit++) {
+    //         if (string[i] == '\0') {
+    //             return;
+    //         }
+    //         if (string[i] == 'X') {
+    //             deck[rank][suit] = true;
+    //         } else {
+    //             deck[rank][suit] = false;
+    //         }
+    //         i++;
+    //     }
+    // }
+}
 
 // Returns random number [0, max).
 int random_unsigned(int max) {
@@ -560,4 +840,3 @@ int random_signed(int max) {
         return -random_unsigned(max);
     }
 }
-
