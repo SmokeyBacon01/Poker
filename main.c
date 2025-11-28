@@ -108,6 +108,7 @@ char int_to_face(int n);
 struct player_hand *create_hand_node(struct card card);
 struct card draw_card(bool deck[MAX_RANKS][MAX_SUITS]);
 int get_sum(struct player_hand *hand);
+void free_hand(struct player_hand *hand);
 
 
 int main(void) {
@@ -241,7 +242,10 @@ void play_blackjack(bool deck[MAX_RANKS][MAX_SUITS], int cash) {
             cash += bet;
         }
 
+        free_hand(hand);
+        free_hand(dealer);
         initialise_deck(deck);
+        
         printf("Balance: %d\n", cash);
         printf("Play more? (y/n)\n");
         scanf(" %c", &more);
@@ -252,6 +256,17 @@ void play_blackjack(bool deck[MAX_RANKS][MAX_SUITS], int cash) {
             scanf(" %c", &quit);
             break;
         }
+    }
+}
+
+void free_hand(struct player_hand *hand) {
+    struct player_hand *curr = hand;
+    struct player_hand *next = NULL;
+
+    while (curr != NULL) {
+        next = curr->next;
+        free(curr);
+        curr = next;
     }
 }
 
